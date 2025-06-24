@@ -6,7 +6,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Global, Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -22,6 +22,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ForumModule } from './modules/forum/forum.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { TagsModule } from './modules/tags/tags.module';
+import { AuthGuard } from './middlewares/auth.guard';
+import { TokenService } from './helpers/jwt.token.service';
+import { JwtModule } from '@nestjs/jwt';
 
 @Global()
 @Module({
@@ -86,9 +89,15 @@ class LoggingModule { }
       }),
       adapter: ExpressAdapter,
     }),
+    JwtModule.register({
+      global: true,
+      secret: config().jwt.secret,
+      signOptions: { expiresIn: config().jwt.expiresIn },
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({ throttlers: [config().throttle] }),
     LoggingModule,
+    UserModule, AuthModule, ForumModule, PostsModule, TagsModule
   ],
   controllers: [AppController],
   providers: [
@@ -97,6 +106,15 @@ class LoggingModule { }
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+    {
+      provide: "CONFIG",
+      useClass: ConfigService,
+    },
+    TokenService,
   ],
 })
 export class AppModule {}

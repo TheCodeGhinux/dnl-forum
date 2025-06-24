@@ -1,35 +1,78 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTagDto } from './dto/create-tag.dto';
-import { UpdateTagDto } from './dto/update-tag.dto';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { TagDAL } from './tags/tag.dal';
+import { CustomHttpException } from 'src/shared/exception.handler';
 
 @Injectable()
 export class TagService {
   constructor(private readonly tagDal: TagDAL) { }
 
   async createTags(postId: string, userIds: string[]) {
-    const tags = userIds.map(userId => ({
+    if (!userIds?.length) {
+      throw new CustomHttpException(
+        'No user IDs provided to tag',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const tags = userIds.map((userId) => ({
       post: postId,
-      taggedUser: userId
+      taggedUser: userId,
     }));
-    return this.tagDal.create(tags);
+    const created = await this.tagDal.create(tags);
+    return {
+      message: 'Users tagged successfully',
+      data: created,
+    };
   }
 
   async getTagsForPost(postId: string) {
-    return this.tagDal.find({ post: postId });
+    const tags = await this.tagDal.find({ post: postId });
+    if (!tags?.length) {
+      throw new CustomHttpException(
+        `No tags found for post ${postId}`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return {
+      message: 'Tags fetched successfully',
+      data: tags,
+    };
   }
 
   async updateTagsForPost(postId: string, userIds: string[]) {
-    // Full replacement strategy
+    // remove all existing
     await this.tagDal.deleteMany({ post: postId });
-    return this.createTags(postId, userIds);
+    // create new
+    const tags = userIds.map((userId) => ({
+      post: postId,
+      taggedUser: userId,
+    }));
+    const updated = await this.tagDal.create(tags);
+    return {
+      message: 'Tags updated successfully',
+      data: updated,
+    };
   }
 
   async deleteTagsForPost(postId: string) {
-    return this.tagDal.deleteMany({ post: postId });
+    const deleteCount = await this.tagDal.deleteMany({ post: postId });
+    return {
+      message: 'Tags deleted successfully',
+      data: { deletedCount: deleteCount },
+    };
   }
 
   async getUserMentions(userId: string) {
-    return this.tagDal.find({ taggedUser: userId });
+    const mentions = await this.tagDal.find({ taggedUser: userId });
+    if (!mentions?.length) {
+      throw new CustomHttpException(
+        `No mentions found for user ${userId}`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return {
+      message: 'User mentions fetched successfully',
+      data: mentions,
+    };
   }
 }

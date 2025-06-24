@@ -30,7 +30,7 @@ export class User extends BaseSchema {
 
   @IsEnum(UserRole)
   @Prop({ type: String, enum: UserRole, default: UserRole.USER })
-  role: UserRole;
+  role?: UserRole;
 
   @IsDate()
   @IsOptional()
@@ -40,7 +40,7 @@ export class User extends BaseSchema {
   @IsArray()
   @IsOptional()
   @Prop({ type: [SchemaTypes.ObjectId], ref: DB_TABLE_NAMES.FORUMS, default: [] })
-  forums: string[]; 
+  forums?: string[]; 
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -8,6 +8,7 @@ import moment from 'moment';
 import { pick } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
+import { LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -51,7 +52,7 @@ export class AuthService {
 
   }
 
-  async login(payload: any) {
+  async login(payload: LoginDto) {
     const user = await this.userService.findOne({
       email: payload.email.trim().toLowerCase(),
     });
@@ -69,22 +70,22 @@ export class AuthService {
       throw new CustomHttpException('invalid credentials', HttpStatus.FORBIDDEN);
     }
 
+    const tokens = await this.getAuthTokens(user);
     this.logger.info('Successful login', {
       payload: { ...payload, password: '' },
       user,
     });
-    return {message: "Successfully logged in", data: user};
+    return {message: "Successfully logged in", data: {user, tokens}};
   }
 
   async getAuthTokens(user: User) {
-    const payloadId = await hash(`${user.email}${user.password}`, 8);
-    const payload = { ...pick(user, ['id']), payloadId };
+
+    const payload = { ...pick(user, ['id', 'email', 'username'])};
     const accessToken = this.jwtService.sign(payload);
-    const accessTokenExpires = this.getExpirationDateFromToken(accessToken);
+    // const accessTokenExpires = this.getExpirationDateFromToken(accessToken);
 
     return {
       accessToken,
-      accessTokenExpires,
     };
   }
 

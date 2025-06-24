@@ -7,15 +7,18 @@ import { UserSchema } from '../user/entities/user.entity';
 import { PostSchema } from '../posts/entities/post.entity';
 import { ForumDAL } from './dals/forum.dal';
 import { ForumSchema } from './entities/forum.entity';
+import { TokenService } from 'src/helpers/jwt.token.service';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: DB_TABLE_NAMES.FORUMS, schema: ForumSchema },
     ]),
+    UserModule
   ],
   controllers: [ForumController],
-  providers: [ForumService, ForumDAL],
+  providers: [ForumService, ForumDAL, TokenService],
   exports: [ForumService]
 })
 export class ForumModule {}

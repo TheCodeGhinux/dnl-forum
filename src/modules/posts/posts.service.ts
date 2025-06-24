@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { PostDAL } from './dals/post.dal';
 import { TagService } from '../tags/tags.service';
+import { CustomHttpException } from 'src/shared/exception.handler';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class PostService {
@@ -31,31 +31,56 @@ export class PostService {
   }
 
   async getPostById(id: string, populate?: any) {
-    return this.postDal.findOne({ _id: id }, null, populate);
+    const post = await this.postDal.findOne({ _id: id }, null, populate);
+    if (!post) {
+      throw new CustomHttpException(
+        `Post with id=${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return { message: 'Post fetched successfully', data: post };
   }
 
   async getForumPosts(forumId: string) {
-    return this.postDal.find({ forum: forumId, parentPost: null });
+    const posts = await this.postDal.find({ forum: forumId, parentPost: null });
+    return { message: 'Forum posts fetched successfully', data: posts };
   }
 
   async getPostReplies(postId: string) {
-    return this.postDal.find({ parentPost: postId });
+    const replies = await this.postDal.find({ parentPost: postId });
+    return { message: 'Post replies fetched successfully', data: replies };
   }
 
-  async updatePost(id: string, update: any) {
-    const result = await this.postDal.updateOne({ _id: id }, update);
+  async updatePost(id: string, update: any, user: User) {
+    const existing = await this.postDal.findOne({ _id: id, author: user.id });
+    if (!existing) {
+      throw new CustomHttpException(
+        `Post with id=${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
-    // Update tags if needed
+    const updated = await this.postDal.updateOne({ _id: id }, update);
+
     if (update.taggedUserIds) {
       await this.tagService.updateTagsForPost(id, update.taggedUserIds);
     }
 
-    return result;
+    return { message: 'Post updated successfully', data: updated };
   }
 
-  async deletePost(id: string) {
-    // Delete post and its tags
+  async deletePost(id: string, user: User) {
+    const existing = await this.postDal.findOne({ _id: id,  author: user.id});
+    if (!existing) {
+      throw new CustomHttpException(
+        `Post with id=${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
     await this.tagService.deleteTagsForPost(id);
-    return this.postDal.deleteMany({ _id: id });
+    await this.postDal.deleteMany({ _id: id });
+
+    return { message: 'Post deleted successfully', data: null };
   }
 }
